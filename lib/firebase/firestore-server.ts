@@ -1,31 +1,14 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-  type DocumentData,
-  type QueryConstraint,
-} from "firebase/firestore";
-import { firebase } from "./config";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "./admin";
 import type { Difficulty, Quiz, QuizResult, User, LeaderboardEntry } from "@/types";
 
-const db = firebase.db;
+// ─── Users ─────────────────────────────────────────────────────────────────
 
 export async function createUserProfile(
   userId: string,
   profile: { displayName: string; email: string; photoURL?: string }
 ): Promise<void> {
-  const userRef = doc(db, "users", userId);
-  await setDoc(userRef, {
+  await adminDb.collection("users").doc(userId).set({
     uid: userId,
     displayName: profile.displayName,
     email: profile.email,
@@ -33,125 +16,142 @@ export async function createUserProfile(
     totalScore: 0,
     quizzesPlayed: 0,
     quizzesCreated: 0,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 }
 
+export async function getUserProfile(userId: string): Promise<User | null> {
+  const snap = await adminDb.collection("users").doc(userId).get();
+  if (!snap.exists) return null;
+  return snap.data() as User;
+}
+
+// ─── Quizzes ────────────────────────────────────────────────────────────────
+
 export async function getQuizById(quizId: string): Promise<Quiz | null> {
-  const snapshot = await getDoc(doc(db, "quizzes", quizId));
-  if (!snapshot.exists()) return null;
-  return { id: snapshot.id, ...snapshot.data() } as Quiz;
+  const snap = await adminDb.collection("quizzes").doc(quizId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() } as Quiz;
 }
 
 export async function getPublicQuizzes(
   category?: string,
   difficulty?: Difficulty
 ): Promise<Quiz[]> {
-  const constraints: QueryConstraint[] = [where("isPublic", "==", true)];
+  let q = adminDb
+    .collection("quizzes")
+    .where("isPublic", "==", true) as FirebaseFirestore.Query;
 
-  if (category) {
-    constraints.push(where("category", "==", category));
-  }
-  if (difficulty) {
-    constraints.push(where("difficulty", "==", difficulty));
-  }
+  if (category) q = q.where("category", "==", category);
+  if (difficulty) q = q.where("difficulty", "==", difficulty);
 
-  const snapshot = await getDocs(query(collection(db, "quizzes"), ...constraints));
+  const snapshot = await q.get();
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as Quiz);
 }
 
 export async function createQuiz(
   quiz: Omit<Quiz, "id" | "createdAt" | "playCount">
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, "quizzes"), {
+  const ref = await adminDb.collection("quizzes").add({
     ...quiz,
     playCount: 0,
-    createdAt: serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
-  return docRef.id;
+  return ref.id;
 }
 
 export async function incrementQuizPlayCount(quizId: string): Promise<void> {
-  await updateDoc(doc(db, "quizzes", quizId), {
-    playCount: increment(1),
-  });
+  await adminDb
+    .collection("quizzes")
+    .doc(quizId)
+    .update({ playCount: FieldValue.increment(1) });
 }
+
+// ─── Results ────────────────────────────────────────────────────────────────
 
 export async function saveQuizResult(
   result: Omit<QuizResult, "id" | "completedAt">
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, "results"), {
+  const ref = await adminDb.collection("results").add({
     ...result,
-    completedAt: serverTimestamp(),
+    completedAt: FieldValue.serverTimestamp(),
   });
 
-  const userRef = doc(db, "users", result.userId);
-  await updateDoc(userRef, {
-    totalScore: increment(result.score),
-    quizzesPlayed: increment(1),
-  });
+  await adminDb
+    .collection("users")
+    .doc(result.userId)
+    .update({
+      totalScore: FieldValue.increment(result.score),
+      quizzesPlayed: FieldValue.increment(1),
+    });
 
-  return docRef.id;
+  return ref.id;
 }
 
 export async function getResultById(
   resultId: string
 ): Promise<QuizResult | null> {
-  const snapshot = await getDoc(doc(db, "results", resultId));
-  if (!snapshot.exists()) return null;
-  return { id: snapshot.id, ...snapshot.data() } as QuizResult;
+  const snap = await adminDb.collection("results").doc(resultId).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() } as QuizResult;
 }
 
 export async function getUserResults(
   userId: string,
   max = 10
 ): Promise<QuizResult[]> {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "results"),
-      where("userId", "==", userId),
-      orderBy("completedAt", "desc"),
-      limit(max)
-    )
-  );
+  const snapshot = await adminDb
+    .collection("results")
+    .where("userId", "==", userId)
+    .orderBy("completedAt", "desc")
+    .limit(max)
+    .get();
+
   return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }) as QuizResult);
 }
 
-export async function getUserProfile(userId: string): Promise<User | null> {
-  const snapshot = await getDoc(doc(db, "users", userId));
-  if (!snapshot.exists()) return null;
-  return snapshot.data() as User;
-}
+// ─── Leaderboard ────────────────────────────────────────────────────────────
 
 export async function getLeaderboardEntries(
   max = 10,
   category?: string,
   difficulty?: Difficulty
 ): Promise<LeaderboardEntry[]> {
-  const constraints: QueryConstraint[] = [
-    orderBy("score", "desc"),
-    limit(max),
-  ];
-
-  const snapshot = await getDocs(
-    query(collection(db, "results"), ...constraints)
-  );
+  const snapshot = await adminDb
+    .collection("results")
+    .orderBy("score", "desc")
+    .limit(max * 5) // fetch extra to allow client-side filter
+    .get();
 
   let results = snapshot.docs.map(
     (d) => ({ id: d.id, ...d.data() }) as QuizResult
   );
 
+  // Resolve all quiz & user ids in parallel
+  const quizIds = [...new Set(results.map((r) => r.quizId))];
+  const userIds = [...new Set(results.map((r) => r.userId))];
+
+  const [quizSnaps, userSnaps] = await Promise.all([
+    Promise.all(
+      quizIds.map((id) => adminDb.collection("quizzes").doc(id).get())
+    ),
+    Promise.all(
+      userIds.map((id) => adminDb.collection("users").doc(id).get())
+    ),
+  ]);
+
+  const quizMap = new Map<string, Quiz>();
+  quizSnaps.forEach((s) => {
+    if (s.exists) quizMap.set(s.id, { id: s.id, ...s.data() } as Quiz);
+  });
+
+  const userMap = new Map<string, User>();
+  userSnaps.forEach((s) => {
+    if (s.exists) userMap.set(s.id, s.data() as User);
+  });
+
+  // Filter by category / difficulty if provided
   if (category || difficulty) {
-    const quizIds = [...new Set(results.map((r) => r.quizId))];
-    const quizMap = new Map<string, Quiz>();
-
-    await Promise.all(
-      quizIds.map(async (id) => {
-        const quiz = await getQuizById(id);
-        if (quiz) quizMap.set(id, quiz);
-      })
-    );
-
     results = results.filter((r) => {
       const quiz = quizMap.get(r.quizId);
       if (!quiz) return false;
@@ -161,27 +161,7 @@ export async function getLeaderboardEntries(
     });
   }
 
-  // Fetch profiles and construct LeaderboardEntry objects
-  const userIds = [...new Set(results.map((r) => r.userId))];
-  const userMap = new Map<string, User>();
-  await Promise.all(
-    userIds.map(async (uid) => {
-      const profile = await getUserProfile(uid);
-      if (profile) userMap.set(uid, profile);
-    })
-  );
-
-  // Fetch quizzes if we didn't fetch them already, to get category/difficulty
-  const quizIds = [...new Set(results.map((r) => r.quizId))];
-  const quizMap = new Map<string, Quiz>();
-  await Promise.all(
-    quizIds.map(async (id) => {
-      const quiz = await getQuizById(id);
-      if (quiz) quizMap.set(id, quiz);
-    })
-  );
-
-  const entries: LeaderboardEntry[] = results.slice(0, max).map((r) => {
+  return results.slice(0, max).map((r) => {
     const profile = userMap.get(r.userId);
     const quiz = quizMap.get(r.quizId);
     return {
@@ -194,32 +174,31 @@ export async function getLeaderboardEntries(
       category: quiz?.category ?? "",
       difficulty: quiz?.difficulty ?? "medium",
       completedAt: r.completedAt,
-    };
+    } satisfies LeaderboardEntry;
   });
-
-  return entries;
 }
 
-export async function firestoreAdd<T extends DocumentData>(
+// ─── Generic helpers ─────────────────────────────────────────────────────────
+
+export async function firestoreAdd<T extends FirebaseFirestore.DocumentData>(
   collectionName: string,
   data: T
 ): Promise<string> {
-  const docRef = await addDoc(collection(db, collectionName), data);
-  return docRef.id;
+  const ref = await adminDb.collection(collectionName).add(data);
+  return ref.id;
 }
 
 export async function firestoreUpdate(
   collectionName: string,
   id: string,
-  data: Partial<DocumentData>
+  data: Partial<FirebaseFirestore.DocumentData>
 ): Promise<void> {
-  await updateDoc(doc(db, collectionName, id), data);
+  await adminDb.collection(collectionName).doc(id).update(data);
 }
 
 export async function firestoreRemove(
   collectionName: string,
   id: string
 ): Promise<void> {
-  const { deleteDoc } = await import("firebase/firestore");
-  await deleteDoc(doc(db, collectionName, id));
+  await adminDb.collection(collectionName).doc(id).delete();
 }
