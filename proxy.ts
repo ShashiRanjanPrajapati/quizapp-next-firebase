@@ -27,7 +27,7 @@ export default async function proxy(request: NextRequest) {
       }
 
       const token = authHeader.split("Bearer ")[1];
-      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY;
 
       if (!apiKey) {
         return NextResponse.json(
