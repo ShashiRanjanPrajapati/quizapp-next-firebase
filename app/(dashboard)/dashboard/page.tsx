@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Trophy, Target, BarChart3, PlusCircle, Play } from "lucide-react";
 import { DashboardLayout } from "@/components/templates/DashboardLayout";
-import { ProtectedRoute } from "@/components/providers/ProtectedRoute";
+import { ProtectedRoute } from "@/providers/ProtectedRoute";
 import { Spinner } from "@/components/atoms/Spinner";
 import { useAuth } from "@/hooks/useAuth";
 import { getUserResults, getLeaderboardEntries } from "@/lib/firebase/firestore";
@@ -34,10 +34,10 @@ export default function DashboardPage() {
         user={
           user
             ? {
-                displayName:
-                  userProfile?.displayName ?? user.displayName ?? "User",
-                photoURL: userProfile?.photoURL ?? user.photoURL ?? undefined,
-              }
+              displayName:
+                userProfile?.displayName ?? user.displayName ?? "User",
+              photoURL: userProfile?.photoURL ?? user.photoURL ?? undefined,
+            }
             : null
         }
         onSignOut={signOut}
@@ -113,14 +113,14 @@ export default function DashboardPage() {
                     pct >= 70
                       ? "bg-emerald-500"
                       : pct >= 40
-                      ? "bg-amber-400"
-                      : "bg-destructive";
+                        ? "bg-amber-400"
+                        : "bg-destructive";
                   const textColor =
                     pct >= 70
                       ? "text-emerald-400"
                       : pct >= 40
-                      ? "text-amber-400"
-                      : "text-destructive";
+                        ? "text-amber-400"
+                        : "text-destructive";
                   return (
                     <Link
                       key={result.id}

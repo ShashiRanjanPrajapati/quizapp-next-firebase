@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/templates/DashboardLayout";
-import { ProtectedRoute } from "@/components/providers/ProtectedRoute";
+import { ProtectedRoute } from "@/providers/ProtectedRoute";
 import {
   QuizCreator,
   type QuizFormData,
@@ -58,10 +58,10 @@ export default function CreateQuizPage() {
         user={
           user
             ? {
-                displayName:
-                  userProfile?.displayName ?? user.displayName ?? "User",
-                photoURL: userProfile?.photoURL ?? user.photoURL ?? undefined,
-              }
+              displayName:
+                userProfile?.displayName ?? user.displayName ?? "User",
+              photoURL: userProfile?.photoURL ?? user.photoURL ?? undefined,
+            }
             : null
         }
         onSignOut={signOut}

@@ -1,22 +1,51 @@
-import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
-import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getDatabase, type Database } from "firebase/database";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ?? "",
-};
+let app: any = null;
+let auth: any = null;
+let db: any = null;
+let rtdb: any = null;
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const isClient = typeof window !== "undefined";
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-const rtdb = getDatabase(app);
+// Server-side initialization: initialize immediately using local process.env variables (if present)
+if (!isClient) {
+  const serverConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL ?? "",
+  };
+  
+  if (serverConfig.apiKey) {
+    try {
+      app = getApps().length === 0 ? initializeApp(serverConfig) : getApps()[0];
+      auth = getAuth(app);
+      db = getFirestore(app);
+      rtdb = getDatabase(app);
+    } catch (err) {
+      console.error("Failed to initialize Firebase on server:", err);
+    }
+  }
+}
+
+// Client-side initialization: called dynamically by the FirebaseProvider
+export function setFirebaseConfig(config: any) {
+  if (!app && isClient && config?.apiKey) {
+    try {
+      app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+      auth = getAuth(app);
+      db = getFirestore(app);
+      rtdb = getDatabase(app);
+    } catch (err) {
+      console.error("Failed to initialize Firebase on client:", err);
+    }
+  }
+}
 
 export { app, auth, db, rtdb };
