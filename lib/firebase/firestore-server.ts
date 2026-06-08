@@ -15,8 +15,10 @@ import {
   type DocumentData,
   type QueryConstraint,
 } from "firebase/firestore";
-import { db } from "./config";
+import { firebase } from "./config";
 import type { Difficulty, Quiz, QuizResult, User } from "@/types";
+
+const db = firebase.db;
 
 export async function createUserProfile(
   userId: string,

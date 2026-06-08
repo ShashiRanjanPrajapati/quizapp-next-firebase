@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase/config";
+import { firebase } from "@/lib/firebase/config";
 import {
   registerWithEmail,
   signInWithEmail,
@@ -24,7 +24,13 @@ export function useAuth() {
   } = useAuthStore();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    // If running during SSR and firebase.auth is not initialized yet, skip or wait
+    if (!firebase.auth) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(firebase.auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
         try {
@@ -51,7 +57,7 @@ export function useAuth() {
       setLoading(false);
     });
     return unsubscribe;
-  }, [setFirebaseUser, setUserProfile, setLoading]);
+  }, [setFirebaseUser, setUserProfile, setLoading, firebase.auth]);
 
   const signInWithGoogleHandler = useCallback(async () => {
     await signInWithGoogle();

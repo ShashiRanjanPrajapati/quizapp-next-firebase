@@ -8,19 +8,20 @@ import {
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { auth } from "./config";
+import { firebase } from "./config";
 import { createUserProfile } from "./firestore";
 
 const googleProvider = new GoogleAuthProvider();
 
 export async function signInWithGoogle(): Promise<FirebaseUser | void> {
+  if (!firebase.auth) throw new Error("Firebase Auth is not initialized yet.");
   try {
-    const result = await signInWithPopup(auth, googleProvider);
+    const result = await signInWithPopup(firebase.auth, googleProvider);
     return result.user;
   } catch (err: any) {
     if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request") {
       console.log("Popup blocked or cancelled request. Falling back to redirect...");
-      await signInWithRedirect(auth, googleProvider);
+      await signInWithRedirect(firebase.auth, googleProvider);
       return;
     }
     throw err;
@@ -31,7 +32,8 @@ export async function signInWithEmail(
   email: string,
   password: string
 ): Promise<FirebaseUser> {
-  const result = await signInWithEmailAndPassword(auth, email, password);
+  if (!firebase.auth) throw new Error("Firebase Auth is not initialized yet.");
+  const result = await signInWithEmailAndPassword(firebase.auth, email, password);
   return result.user;
 }
 
@@ -40,7 +42,8 @@ export async function registerWithEmail(
   password: string,
   displayName: string
 ): Promise<FirebaseUser> {
-  const result = await createUserWithEmailAndPassword(auth, email, password);
+  if (!firebase.auth) throw new Error("Firebase Auth is not initialized yet.");
+  const result = await createUserWithEmailAndPassword(firebase.auth, email, password);
   await updateProfile(result.user, { displayName });
   await createUserProfile(result.user.uid, {
     displayName,
@@ -50,5 +53,6 @@ export async function registerWithEmail(
 }
 
 export async function signOut(): Promise<void> {
-  await firebaseSignOut(auth);
+  if (!firebase.auth) throw new Error("Firebase Auth is not initialized yet.");
+  await firebaseSignOut(firebase.auth);
 }

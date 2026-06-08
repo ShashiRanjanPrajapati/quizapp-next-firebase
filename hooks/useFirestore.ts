@@ -8,7 +8,7 @@ import {
   onSnapshot,
   type DocumentData,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { firebase } from "@/lib/firebase/config";
 import {
   firestoreAdd,
   firestoreRemove,
@@ -24,6 +24,7 @@ export function useFirestore<T extends DocumentData & { id?: string }>({
   collectionName,
   initialData = [],
 }: UseFirestoreOptions<T>) {
+  const db = firebase.db;
   const [data, setData] = useState<T[]>(initialData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);

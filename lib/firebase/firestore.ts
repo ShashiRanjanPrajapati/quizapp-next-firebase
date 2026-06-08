@@ -1,5 +1,4 @@
-import { getAuth } from "firebase/auth";
-import { app } from "./config";
+import { firebase } from "./config";
 import type { Difficulty, Quiz, QuizResult, User } from "@/types";
 
 const isClient = typeof window !== "undefined";
@@ -11,8 +10,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (isClient) {
     try {
-      const auth = getAuth(app);
-      const token = await auth.currentUser?.getIdToken();
+      const auth = firebase.auth;
+      const token = await auth?.getIdToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }

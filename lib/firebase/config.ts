@@ -3,14 +3,14 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
-let app: any = null;
-let auth: any = null;
-let db: any = null;
-let rtdb: any = null;
+let appInstance: any = null;
+let authInstance: any = null;
+let dbInstance: any = null;
+let rtdbInstance: any = null;
 
 const isClient = typeof window !== "undefined";
 
-// Server-side initialization: initialize immediately using local process.env variables (if present)
+// Server-side initialization
 if (!isClient) {
   const serverConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "",
@@ -24,28 +24,34 @@ if (!isClient) {
   
   if (serverConfig.apiKey) {
     try {
-      app = getApps().length === 0 ? initializeApp(serverConfig) : getApps()[0];
-      auth = getAuth(app);
-      db = getFirestore(app);
-      rtdb = getDatabase(app);
+      appInstance = getApps().length === 0 ? initializeApp(serverConfig) : getApps()[0];
+      authInstance = getAuth(appInstance);
+      dbInstance = getFirestore(appInstance);
+      rtdbInstance = getDatabase(appInstance);
     } catch (err) {
       console.error("Failed to initialize Firebase on server:", err);
     }
   }
 }
 
-// Client-side initialization: called dynamically by the FirebaseProvider
+// Client-side initialization
 export function setFirebaseConfig(config: any) {
-  if (!app && isClient && config?.apiKey) {
+  if (!appInstance && isClient && config?.apiKey) {
     try {
-      app = getApps().length === 0 ? initializeApp(config) : getApps()[0];
-      auth = getAuth(app);
-      db = getFirestore(app);
-      rtdb = getDatabase(app);
+      appInstance = getApps().length === 0 ? initializeApp(config) : getApps()[0];
+      authInstance = getAuth(appInstance);
+      dbInstance = getFirestore(appInstance);
+      rtdbInstance = getDatabase(appInstance);
     } catch (err) {
       console.error("Failed to initialize Firebase on client:", err);
     }
   }
 }
 
-export { app, auth, db, rtdb };
+// Export a dynamic getter object to bypass static bundling restrictions
+export const firebase = {
+  get app() { return appInstance; },
+  get auth() { return authInstance; },
+  get db() { return dbInstance; },
+  get rtdb() { return rtdbInstance; }
+};

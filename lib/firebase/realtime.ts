@@ -8,17 +8,19 @@ import {
   type DatabaseReference,
   type Unsubscribe,
 } from "firebase/database";
-import { rtdb } from "./config";
+import { firebase } from "./config";
 import type { LiveRoom } from "@/types";
 
 export function getRoomRef(roomId: string): DatabaseReference {
-  return ref(rtdb, `rooms/${roomId}`);
+  if (!firebase.rtdb) throw new Error("Firebase RTDB is not initialized yet.");
+  return ref(firebase.rtdb, `rooms/${roomId}`);
 }
 
 export async function createLiveRoom(
   room: Omit<LiveRoom, "id">
 ): Promise<string> {
-  const roomsRef = ref(rtdb, "rooms");
+  if (!firebase.rtdb) throw new Error("Firebase RTDB is not initialized yet.");
+  const roomsRef = ref(firebase.rtdb, "rooms");
   const newRoomRef = push(roomsRef);
   await set(newRoomRef, room);
   return newRoomRef.key ?? "";
