@@ -16,7 +16,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { firebase } from "./config";
-import type { Difficulty, Quiz, QuizResult, User } from "@/types";
+import type { Difficulty, Quiz, QuizResult, User, LeaderboardEntry } from "@/types";
 
 const db = firebase.db;
 
@@ -127,7 +127,7 @@ export async function getLeaderboardEntries(
   max = 10,
   category?: string,
   difficulty?: Difficulty
-): Promise<QuizResult[]> {
+): Promise<LeaderboardEntry[]> {
   const constraints: QueryConstraint[] = [
     orderBy("score", "desc"),
     limit(max),
@@ -161,7 +161,43 @@ export async function getLeaderboardEntries(
     });
   }
 
-  return results.slice(0, max);
+  // Fetch profiles and construct LeaderboardEntry objects
+  const userIds = [...new Set(results.map((r) => r.userId))];
+  const userMap = new Map<string, User>();
+  await Promise.all(
+    userIds.map(async (uid) => {
+      const profile = await getUserProfile(uid);
+      if (profile) userMap.set(uid, profile);
+    })
+  );
+
+  // Fetch quizzes if we didn't fetch them already, to get category/difficulty
+  const quizIds = [...new Set(results.map((r) => r.quizId))];
+  const quizMap = new Map<string, Quiz>();
+  await Promise.all(
+    quizIds.map(async (id) => {
+      const quiz = await getQuizById(id);
+      if (quiz) quizMap.set(id, quiz);
+    })
+  );
+
+  const entries: LeaderboardEntry[] = results.slice(0, max).map((r) => {
+    const profile = userMap.get(r.userId);
+    const quiz = quizMap.get(r.quizId);
+    return {
+      id: r.id,
+      userId: r.userId,
+      displayName: profile?.displayName ?? "Anonymous",
+      photoURL: profile?.photoURL,
+      score: r.score,
+      quizId: r.quizId,
+      category: quiz?.category ?? "",
+      difficulty: quiz?.difficulty ?? "medium",
+      completedAt: r.completedAt,
+    };
+  });
+
+  return entries;
 }
 
 export async function firestoreAdd<T extends DocumentData>(

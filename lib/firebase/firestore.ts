@@ -1,5 +1,5 @@
 import { firebase } from "./config";
-import type { Difficulty, Quiz, QuizResult, User } from "@/types";
+import type { Difficulty, Quiz, QuizResult, User, LeaderboardEntry } from "@/types";
 
 const isClient = typeof window !== "undefined";
 
@@ -105,7 +105,7 @@ export async function getLeaderboardEntries(
   max = 10,
   category?: string,
   difficulty?: Difficulty
-): Promise<QuizResult[]> {
+): Promise<LeaderboardEntry[]> {
   const params = new URLSearchParams();
   params.append("max", String(max));
   if (category) params.append("category", category);
