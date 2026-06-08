@@ -10,8 +10,8 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (isClient) {
     try {
-      const auth = firebase.auth;
-      const token = await auth?.getIdToken();
+      const currentUser = firebase.auth?.currentUser;
+      const token = await currentUser?.getIdToken();
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }
