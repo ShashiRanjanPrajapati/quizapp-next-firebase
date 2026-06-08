@@ -3,20 +3,28 @@ import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { auth, db } from "./config";
-import type { User } from "@/types";
+import { auth } from "./config";
+import { createUserProfile } from "./firestore";
 
 const googleProvider = new GoogleAuthProvider();
 
-export async function signInWithGoogle(): Promise<FirebaseUser> {
-  const result = await signInWithPopup(auth, googleProvider);
-  await ensureUserProfile(result.user);
-  return result.user;
+export async function signInWithGoogle(): Promise<FirebaseUser | void> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (err: any) {
+    if (err.code === "auth/popup-blocked" || err.code === "auth/cancelled-popup-request") {
+      console.log("Popup blocked or cancelled request. Falling back to redirect...");
+      await signInWithRedirect(auth, googleProvider);
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function signInWithEmail(
@@ -34,39 +42,13 @@ export async function registerWithEmail(
 ): Promise<FirebaseUser> {
   const result = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(result.user, { displayName });
-  await createUserProfile(result.user, displayName);
+  await createUserProfile(result.user.uid, {
+    displayName,
+    email: result.user.email ?? "",
+  });
   return result.user;
 }
 
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
-}
-
-async function createUserProfile(
-  firebaseUser: FirebaseUser,
-  displayName: string
-): Promise<void> {
-  const userRef = doc(db, "users", firebaseUser.uid);
-  const userData: Omit<User, "createdAt"> & { createdAt: ReturnType<typeof serverTimestamp> } = {
-    uid: firebaseUser.uid,
-    displayName,
-    email: firebaseUser.email ?? "",
-    photoURL: firebaseUser.photoURL ?? undefined,
-    totalScore: 0,
-    quizzesPlayed: 0,
-    quizzesCreated: 0,
-    createdAt: serverTimestamp(),
-  };
-  await setDoc(userRef, userData);
-}
-
-async function ensureUserProfile(firebaseUser: FirebaseUser): Promise<void> {
-  const userRef = doc(db, "users", firebaseUser.uid);
-  const snapshot = await getDoc(userRef);
-  if (!snapshot.exists()) {
-    await createUserProfile(
-      firebaseUser,
-      firebaseUser.displayName ?? "Anonymous"
-    );
-  }
 }

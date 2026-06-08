@@ -92,6 +92,16 @@ export async function getUserProfile(userId: string): Promise<User | null> {
   return fetchWithAuth(`/api/users/${userId}/profile`);
 }
 
+export async function createUserProfile(
+  userId: string,
+  profile: { displayName: string; email: string; photoURL?: string }
+): Promise<void> {
+  return fetchWithAuth(`/api/users/${userId}/profile`, {
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
 export async function getLeaderboardEntries(
   max = 10,
   category?: string,

@@ -9,7 +9,7 @@ import {
   signInWithGoogle,
   signOut as firebaseSignOut,
 } from "@/lib/firebase/auth";
-import { getUserProfile } from "@/lib/firebase/firestore";
+import { getUserProfile, createUserProfile } from "@/lib/firebase/firestore";
 import { useAuthStore } from "@/store/authStore";
 
 export function useAuth() {
@@ -27,8 +27,24 @@ export function useAuth() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
+        try {
+          const profile = await getUserProfile(user.uid);
+          setUserProfile(profile);
+        } catch (err) {
+          console.log("User profile not found. Auto-creating user profile...");
+          try {
+            await createUserProfile(user.uid, {
+              displayName: user.displayName ?? "Anonymous",
+              email: user.email ?? "",
+              photoURL: user.photoURL ?? undefined,
+            });
+            const profile = await getUserProfile(user.uid);
+            setUserProfile(profile);
+          } catch (createErr) {
+            console.error("Failed to auto-create user profile:", createErr);
+            setUserProfile(null);
+          }
+        }
       } else {
         setUserProfile(null);
       }

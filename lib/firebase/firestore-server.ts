@@ -9,6 +9,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   updateDoc,
   where,
   type DocumentData,
@@ -16,6 +17,23 @@ import {
 } from "firebase/firestore";
 import { db } from "./config";
 import type { Difficulty, Quiz, QuizResult, User } from "@/types";
+
+export async function createUserProfile(
+  userId: string,
+  profile: { displayName: string; email: string; photoURL?: string }
+): Promise<void> {
+  const userRef = doc(db, "users", userId);
+  await setDoc(userRef, {
+    uid: userId,
+    displayName: profile.displayName,
+    email: profile.email,
+    photoURL: profile.photoURL || null,
+    totalScore: 0,
+    quizzesPlayed: 0,
+    quizzesCreated: 0,
+    createdAt: serverTimestamp(),
+  });
+}
 
 export async function getQuizById(quizId: string): Promise<Quiz | null> {
   const snapshot = await getDoc(doc(db, "quizzes", quizId));
